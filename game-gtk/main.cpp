@@ -6,6 +6,8 @@
 #include <cairo.h>
 #include <gtk/gtk.h>
 
+#include <cassert>
+
 using namespace std;
 
 struct Pozycja {
@@ -15,8 +17,8 @@ struct Pozycja {
 
 struct Akcja {
   char rodzaj_akcji, znak_pionka;
-  int pozycja;
-  Akcja(char _r, char _z, int _p) : rodzaj_akcji(_r), znak_pionka(_z), pozycja(_p) {}
+  int pozycja_y;
+  Akcja(char _r, char _z, int _y) : rodzaj_akcji(_r), znak_pionka(_z), pozycja_y(_y) {}
 };
 
 enum Mode { GRACZ = 0, AI = 1 };
@@ -33,8 +35,12 @@ class Pionek {
       return pozycja_pionka;
     }
 
-    void przesun(int krok) {
+    void przesun(int krok, int rozmiar) {
       pozycja_pionka.x += krok;
+      if (krok >= 0 && pozycja_pionka.x > rozmiar + 1)
+        pozycja_pionka.x = rozmiar + 1;
+      else if (krok < 0 && pozycja_pionka.x < 0)
+        pozycja_pionka.x = 0;
     }
 
     int zycie() {
@@ -43,6 +49,8 @@ class Pionek {
 
     void zmniejsz_zycie(int ile) {
       pozostale_zycie -= ile;
+      if (pozostale_zycie < 0)
+        pozostale_zycie = 0;
     }
 
     virtual int czas() = 0;
@@ -128,6 +136,7 @@ class Plansza {
         if (porownaj_pionki(*it, pionek))
           return it;
       }
+      return it;
     }
 
     list<Pionek*>::iterator szukaj_wsrod_pionkow(Pionek *pionek) {
@@ -136,6 +145,7 @@ class Plansza {
         if (porownaj_pionki(*it, pionek))
           return it;
       }
+      return it;
     }
 
     list<Pionek*>::iterator usun_z_planszy(list<Pionek*>::iterator it) {
@@ -219,12 +229,12 @@ class Zenek : public Gracz {
       } else {
         if (rodzaj_akcji == 'P') {
           char znak_pionka = akcja->znak_pionka;
-          int pozycja = akcja->pozycja;
-          pozycja -= 1;
+          int pozycja_y = akcja->pozycja_y;
+          pozycja_y -= 1;
           if (znak_pionka == 'R')
-            nowy_pionek = new Rycerz(Pozycja(0, pozycja));
+            nowy_pionek = new Rycerz(Pozycja(0, pozycja_y));
           else
-            nowy_pionek = new Smok(Pozycja(0, pozycja));
+            nowy_pionek = new Smok(Pozycja(0, pozycja_y));
           czas_blokady = nowy_pionek->czas();
         }
         if (czas_blokady == 0 && nowy_pionek) {
@@ -291,7 +301,7 @@ class Zenek : public Gracz {
           it = plansza_gracza.usun_z_pionkow(it);
           punkty++;
         } else {
-          (*it)->przesun(nowa_pozycja.x - pozycja.x);
+          (*it)->przesun(nowa_pozycja.x - pozycja.x, rozmiar_planszy);
           plansza_gracza.dodaj_na_plansze(*it);
           it++;
         }
@@ -354,7 +364,7 @@ class Wrog : public Gracz {
           it = plansza_gracza.usun_z_pionkow(it);
           punkty++;
         } else {
-          (*it)->przesun(nowa_pozycja.x - pozycja.x);
+          (*it)->przesun(nowa_pozycja.x - pozycja.x, rozmiar_planszy);
           plansza_gracza.dodaj_na_plansze(*it);
           it++;
         }
@@ -450,6 +460,32 @@ bool koniec_gry() {
   return sedzia->koniec_gry(zenek, wrog);
 }
 
+void wyswietl_widget(void *widget, void* data) {
+  cout << "wyswietl widget " << endl;
+
+  gtk_widget_show ((GtkWidget*) widget);
+}
+
+void nowa_gra_ga(GtkWidget *widget, GList *list) {
+  cout << "nowa gra ga " << endl;
+
+  zenek = new Zenek(rozmiar_planszy, GRACZ);
+  wrog = new Wrog(rozmiar_planszy, AI);
+
+  g_list_foreach (list, wyswietl_widget, NULL);
+  g_list_free (list);
+}
+
+void nowa_gra_aa(GtkWidget *widget, GList *list) {
+  cout << "nowa gra aa " << endl;
+
+  zenek = new Zenek(rozmiar_planszy, AI);
+  wrog = new Wrog(rozmiar_planszy, AI);
+
+  g_list_foreach (list, wyswietl_widget, NULL);
+  g_list_free (list);
+}
+
 void wyswietl_plansze(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
   cout << "wyswietl plansze" << endl;
 
@@ -533,30 +569,6 @@ void wyswietl_plansze(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
   cairo_destroy (cr2);
 }
 
-void wczytaj_ruch(GtkWidget *widget, gpointer data) {
-  cout << "wczytaj ruch " << endl;
-
-  Akcja *akcja = new Akcja(rodzaj_akcji, znak_pionka, pozycja);
-
-  zenek->wczytaj_ruch(akcja);
-  wrog->wczytaj_ruch(akcja);
-
-  rodzaj_akcji = 'X';
-}
-
-void przesun_pionki(GtkWidget *widget, gpointer data) {
-  cout << "przesun pionki " << endl;
-
-  zenek->przesun_pionki(wrog->plansza());
-  wrog->przesun_pionki(zenek->plansza());
-}
-
-void rozegraj_bitwe(GtkWidget *widget, gpointer data) {
-  cout << "pozegraj bitwe " << endl;
-
-  sedzia->rozegraj_bitwe(zenek->plansza(), wrog->plansza());
-}
-
 void aktualizuj_plansze(GtkWidget *widget, gpointer data) {
   cout << "aktualizuj plansze " << endl;
 
@@ -566,40 +578,6 @@ void aktualizuj_plansze(GtkWidget *widget, gpointer data) {
   gdk_window_process_all_updates();
 
   usleep(200000);
-}
-
-void aktywuj_box(GtkWidget *widget, GtkWidget *box) {
-  cout << "aktywuj box " << endl;
-
-  gtk_widget_set_sensitive (box, TRUE);
-}
-
-void deaktywuj_box(GtkWidget *widget, GtkWidget *box) {
-  cout << "deaktywuj box " << endl;
-
-  gtk_widget_set_sensitive (box, FALSE);
-}
-
-void aktywuj_produkcje(GtkWidget *widget, GtkWidget *button) {
-  cout << "aktywuj produkcje" << endl;
-
-  bool blokada = zenek->blokada();
-  gtk_widget_set_sensitive (button, !blokada);
-}
-
-void aktywuj_zatrzymanie(GtkWidget *widget, GtkWidget *button) {
-  cout << "aktywuj zatrzymanie " << endl;
-
-  bool blokada = zenek->blokada();
-  gtk_widget_set_sensitive (button, blokada);
-}
-
-void aktualizuj_wynik(GtkWidget *widget, GtkLabel *label) {
-  cout << "aktualizuj wynik " << endl;
-
-  char *str = (char*) malloc(6 * sizeof(char));
-  sprintf(str, "%d : %d", zenek->wynik(), wrog->wynik());
-  gtk_label_set_text (label, (gchar*) str);
 }
 
 void zmien_akcje(GtkWidget *widget, const char *rodzaj) {
@@ -620,31 +598,66 @@ void zmien_pozycje(GtkWidget *widget, gpointer data) {
   pozycja = atoi(gtk_combo_box_get_active_text (GTK_COMBO_BOX (widget)));
 }
 
-void wyswietl_widget(void *widget, void* data) {
-  cout << "wyswietl widget " << endl;
+void wczytaj_ruch(GtkWidget *widget, gpointer data) {
+  cout << "wczytaj ruch " << endl;
+  cout << "rodzaj akcji: " << rodzaj_akcji << " znak pionka: " << znak_pionka << " pozycja: " << pozycja << endl;
 
-  gtk_widget_show ((GtkWidget*) widget);
+  Akcja *akcja = new Akcja(rodzaj_akcji, znak_pionka, pozycja);
+
+  zenek->wczytaj_ruch(akcja);
+  wrog->wczytaj_ruch(akcja);
+
+  rodzaj_akcji = 'X';
 }
 
-void nowa_gra_ga(GtkWidget *widget, GList *list) {
-  cout << "nowa gra ga " << endl;
+void przesun_pionki(GtkWidget *widget, gpointer data) {
+  //cout << "przesun pionki " << endl;
 
-  zenek = new Zenek(rozmiar_planszy, GRACZ);
-  wrog = new Wrog(rozmiar_planszy, AI);
-
-  g_list_foreach (list, wyswietl_widget, NULL);
-  g_list_free (list);
+  zenek->przesun_pionki(wrog->plansza());
+  wrog->przesun_pionki(zenek->plansza());
 }
 
-void nowa_gra_aa(GtkWidget *widget, GList *list) {
-  cout << "nowa gra aa " << endl;
+void rozegraj_bitwe(GtkWidget *widget, gpointer data) {
+  //cout << "pozegraj bitwe " << endl;
 
-  zenek = new Zenek(rozmiar_planszy, AI);
-  wrog = new Wrog(rozmiar_planszy, AI);
-
-  g_list_foreach (list, wyswietl_widget, NULL);
-  g_list_free (list);
+  sedzia->rozegraj_bitwe(zenek->plansza(), wrog->plansza());
 }
+
+void aktualizuj_wynik(GtkWidget *widget, GtkLabel *label) {
+  //cout << "aktualizuj wynik " << endl;
+
+  char *str = (char*) malloc(6 * sizeof(char));
+  sprintf(str, "%d : %d", zenek->wynik(), wrog->wynik());
+  gtk_label_set_text (label, (gchar*) str);
+}
+
+void aktywuj_produkcje(GtkWidget *widget, GtkWidget *button) {
+  //cout << "aktywuj produkcje" << endl;
+
+  bool blokada = zenek->blokada();
+  gtk_widget_set_sensitive (button, !blokada);
+}
+
+void aktywuj_zatrzymanie(GtkWidget *widget, GtkWidget *button) {
+  //cout << "aktywuj zatrzymanie " << endl;
+
+  bool blokada = zenek->blokada();
+  gtk_widget_set_sensitive (button, blokada);
+}
+
+void aktywuj_box(GtkWidget *widget, GtkWidget *box) {
+  //cout << "aktywuj box " << endl;
+
+  gtk_widget_set_sensitive (box, TRUE);
+}
+
+void deaktywuj_box(GtkWidget *widget, GtkWidget *box) {
+  //cout << "deaktywuj box " << endl;
+
+  gtk_widget_set_sensitive (box, FALSE);
+}
+
+
 
 int main(int argc, char *argv[]) {
   srand(time(0));
