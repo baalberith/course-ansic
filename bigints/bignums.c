@@ -115,7 +115,7 @@ bignum plus (bignum x, bignum y) {
   }
 }
 
-bignum minus (bignum x, bignum y) {
+bignum minusb (bignum x, bignum y) {
   bignum z;
   z.len = x.len;
   int len = x.len;
@@ -328,7 +328,7 @@ bignum divide (bignum x, bignum y) {
 
     z.num[i] = a;
 
-    tmp = minus(tmp, mul_int(y, a));
+    tmp = minusb(tmp, mul_int(y, a));
 
     int j;
     for (j = tmp.len - 2; j >= 0; j--)
@@ -359,5 +359,18 @@ bignum divide (bignum x, bignum y) {
 }
 
 bignum modulo (bignum x, bignum y) {
-  return minus(x, multiply(y, divide(x, y)));
+  return minusb(x, multiply(y, divide(x, y)));
+}
+
+bignum copy(bignum b) {
+  bignum x;
+  x.len = b.len;
+  x.num = calloc(x.len, sizeof(int));
+  memcpy(x.num, b.num, x.len * sizeof(int));
+  
+  return x;
+}
+
+void del(bignum *b) {
+  free(b->num);
 }

@@ -6,17 +6,23 @@ extern "C" {
 }
 
 #include <string>
-using namespace std;
+using std::string;
 
 class Bigint {
   private:
     bignum bigint;
     int minus;
+    Bigint(bignum b, int m);
   public:
+    Bigint(const Bigint& bi);
+    Bigint& operator= (const Bigint& bi);
+    Bigint(string s = "0");
     Bigint(long long n);
-    Bigint(string s);
-    operator long long();
     operator string();
+    operator long long();
+    Bigint operator+ (Bigint b);
+    Bigint operator- (Bigint b);
+    ~Bigint();
 };
 
 #endif

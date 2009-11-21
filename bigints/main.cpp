@@ -3,8 +3,8 @@
 using namespace std;
 
 int main() {
-  Bigint bi("1234567891011121314999999999999999999999999999999999999999999999888888888888888888888888");
-  cout << (string)(bi) << endl;
+  Bigint b1("999999999999999999999"), b2(-1);
+  cout << (string)(b1 - b2) << endl;
   
   return 0;
 }
