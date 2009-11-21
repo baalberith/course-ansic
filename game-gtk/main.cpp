@@ -6,8 +6,6 @@
 #include <cairo.h>
 #include <gtk/gtk.h>
 
-#include <cassert>
-
 using namespace std;
 
 struct Pozycja {
@@ -63,10 +61,10 @@ class Pionek {
 
 class Rycerz : public Pionek {
   private:
-    static const int czas_tworzenia = 0,
-      dlugosc_kroku = 2,
-      dlugosc_zycia = 10;
-    static const int sila_ataku = 10,
+    static const int czas_tworzenia = 1,
+      dlugosc_kroku = 3,
+      dlugosc_zycia = 32;
+    static const int sila_ataku = 13,
       skutecznosc_obrony = 3;
 
   public:
@@ -84,11 +82,11 @@ class Rycerz : public Pionek {
 
 class Smok : public Pionek {
   private:
-    static const int czas_tworzenia = 1,
+    static const int czas_tworzenia = 2,
       dlugosc_kroku = 1,
-      dlugosc_zycia = 20;
-    static const int sila_ataku = 15,
-      skutecznosc_obrony = 6;
+      dlugosc_zycia = 49;
+    static const int sila_ataku = 17,
+      skutecznosc_obrony = 5;
 
   public:
     Smok(Pozycja _p) : Pionek(_p) {
@@ -232,9 +230,9 @@ class Zenek : public Gracz {
           int pozycja_y = akcja->pozycja_y;
           pozycja_y -= 1;
           if (znak_pionka == 'R')
-            nowy_pionek = new Rycerz(Pozycja(0, pozycja_y));
+            nowy_pionek = new Rycerz(Pozycja(1, pozycja_y));
           else
-            nowy_pionek = new Smok(Pozycja(0, pozycja_y));
+            nowy_pionek = new Smok(Pozycja(1, pozycja_y));
           czas_blokady = nowy_pionek->czas();
         }
         if (czas_blokady == 0 && nowy_pionek) {
@@ -264,9 +262,9 @@ class Zenek : public Gracz {
           char znak_pionka = rand() % 2 ? 'R' : 'S';
           int pozycja = rand() % rozmiar_planszy;
           if (znak_pionka == 'R')
-            nowy_pionek = new Rycerz(Pozycja(0, pozycja));
+            nowy_pionek = new Rycerz(Pozycja(1, pozycja));
           else
-            nowy_pionek = new Smok(Pozycja(0, pozycja));
+            nowy_pionek = new Smok(Pozycja(1, pozycja));
           czas_blokady = nowy_pionek->czas();
         }
         if (czas_blokady == 0 && nowy_pionek) {
@@ -286,25 +284,28 @@ class Zenek : public Gracz {
     int przesun_pionki(Plansza plansza_wroga) {
       list<Pionek*>::iterator it, itp;
       for (it = plansza_gracza.lista_pionkow().begin(); it != plansza_gracza.lista_pionkow().end(); ) {
-        itp = plansza_gracza.szukaj_na_planszy(*it);
-        plansza_gracza.usun_z_planszy(itp);
         Pozycja pozycja = (*it)->pozycja();
-        Pozycja nowa_pozycja = pozycja;
-        int liczba_krokow = (*it)->krok();
-        for (int i = pozycja.x + 1; i <= rozmiar_planszy + 1 && i <= pozycja.x + liczba_krokow; i++) {
-          if (!plansza_wroga(pozycja.y, i))
-            nowa_pozycja.x += 1;
-          else
-            break;
-        }
-        if (nowa_pozycja.x >= rozmiar_planszy + 1) {
-          it = plansza_gracza.usun_z_pionkow(it);
-          punkty++;
-        } else {
-          (*it)->przesun(nowa_pozycja.x - pozycja.x, rozmiar_planszy);
-          plansza_gracza.dodaj_na_plansze(*it);
-          it++;
-        }
+        itp = plansza_gracza.szukaj_na_planszy(*it);
+        if (itp != plansza_gracza.lista_pionkow(pozycja.y, pozycja.x).end()) {
+          Pozycja nowa_pozycja = pozycja;
+          int liczba_krokow = (*it)->krok();
+          for (int i = pozycja.x + 1; i <= rozmiar_planszy + 1 && i <= pozycja.x + liczba_krokow; i++) {
+            if (!plansza_wroga(pozycja.y, i))
+              nowa_pozycja.x += 1;
+            else
+              break;
+          }
+          if (nowa_pozycja.x >= rozmiar_planszy + 1) {
+            plansza_gracza.usun_z_planszy(itp);
+            it = plansza_gracza.usun_z_pionkow(it);
+            punkty++;
+          } else if (nowa_pozycja.x != pozycja.x) {
+            plansza_gracza.usun_z_planszy(itp);
+            (*it)->przesun(nowa_pozycja.x - pozycja.x, rozmiar_planszy);
+            plansza_gracza.dodaj_na_plansze(*it);
+            it++;
+          } else it++;
+        } else it++;
       }
       return punkty;
     }
@@ -314,7 +315,38 @@ class Wrog : public Gracz {
   public:
     Wrog(int _r, Mode _m) : Gracz(_r, _m) {}
 
-    void wczytaj_ruch(Akcja*) {
+    void wczytaj_ruch_G(Akcja *akcja) {
+      char rodzaj_akcji = akcja->rodzaj_akcji;
+      if (czas_blokady > 0) {
+        if (rodzaj_akcji == 'Z') {
+          nowy_pionek = 0;
+          czas_blokady = 0;
+        } else {
+          czas_blokady -= 1;
+          if (czas_blokady == 0 && nowy_pionek) {
+            dodaj_pionek(nowy_pionek);
+            nowy_pionek = 0;
+          }
+        }
+      } else {
+        if (rodzaj_akcji == 'P') {
+          char znak_pionka = akcja->znak_pionka;
+          int pozycja_y = akcja->pozycja_y;
+          pozycja_y -= 1;
+          if (znak_pionka == 'R')
+            nowy_pionek = new Rycerz(Pozycja(rozmiar_planszy, pozycja_y));
+          else
+            nowy_pionek = new Smok(Pozycja(rozmiar_planszy, pozycja_y));
+          czas_blokady = nowy_pionek->czas();
+        }
+        if (czas_blokady == 0 && nowy_pionek) {
+          dodaj_pionek(nowy_pionek);
+          nowy_pionek = 0;
+        }
+      }
+    }
+
+    void wczytaj_ruch_A(Akcja*) {
       char rodzaj_akcji;
       if (czas_blokady > 0) {
         rodzaj_akcji = rand() % 8 ? 'X' : 'Z';
@@ -334,9 +366,9 @@ class Wrog : public Gracz {
           char znak_pionka = rand() % 2 ? 'R' : 'S';
           int pozycja = rand() % rozmiar_planszy;
           if (znak_pionka == 'R')
-            nowy_pionek = new Rycerz(Pozycja(rozmiar_planszy + 1, pozycja));
+            nowy_pionek = new Rycerz(Pozycja(rozmiar_planszy, pozycja));
           else
-            nowy_pionek = new Smok(Pozycja(rozmiar_planszy + 1, pozycja));
+            nowy_pionek = new Smok(Pozycja(rozmiar_planszy, pozycja));
           czas_blokady = nowy_pionek->czas();
         }
         if (czas_blokady == 0 && nowy_pionek) {
@@ -346,28 +378,38 @@ class Wrog : public Gracz {
       }
     }
 
+    void wczytaj_ruch(Akcja* akcja) {
+      if (mode == GRACZ)
+        wczytaj_ruch_G(akcja);
+      else
+        wczytaj_ruch_A(akcja);
+    }
+
     int przesun_pionki(Plansza plansza_wroga) {
       list<Pionek*>::iterator it, itp;
       for (it = plansza_gracza.lista_pionkow().begin(); it != plansza_gracza.lista_pionkow().end(); ) {
-        itp = plansza_gracza.szukaj_na_planszy(*it);
-        plansza_gracza.usun_z_planszy(itp);
         Pozycja pozycja = (*it)->pozycja();
-        Pozycja nowa_pozycja = pozycja;
-        int liczba_krokow = (*it)->krok();
-        for (int i = pozycja.x - 1; i >= 0 && i >= pozycja.x - liczba_krokow; i--) {
-          if (!plansza_wroga(pozycja.y, i))
-            nowa_pozycja.x -= 1;
-          else
-            break;
-        }
-        if (nowa_pozycja.x <= 0) {
-          it = plansza_gracza.usun_z_pionkow(it);
-          punkty++;
-        } else {
-          (*it)->przesun(nowa_pozycja.x - pozycja.x, rozmiar_planszy);
-          plansza_gracza.dodaj_na_plansze(*it);
-          it++;
-        }
+        itp = plansza_gracza.szukaj_na_planszy(*it);
+        if (itp != plansza_gracza.lista_pionkow(pozycja.y, pozycja.x).end()) {
+          Pozycja nowa_pozycja = pozycja;
+          int liczba_krokow = (*it)->krok();
+          for (int i = pozycja.x - 1; i >= 0 && i >= pozycja.x - liczba_krokow; i--) {
+            if (!plansza_wroga(pozycja.y, i))
+              nowa_pozycja.x -= 1;
+            else
+              break;
+          }
+          if (nowa_pozycja.x <= 0) {
+            plansza_gracza.usun_z_planszy(itp);
+            it = plansza_gracza.usun_z_pionkow(it);
+            punkty++;
+          } else if (nowa_pozycja.x != pozycja.x) {
+            plansza_gracza.usun_z_planszy(itp);
+            (*it)->przesun(nowa_pozycja.x - pozycja.x, rozmiar_planszy);
+            plansza_gracza.dodaj_na_plansze(*it);
+            it++;
+          } else it++;
+        } else it++;
       }
       return punkty;
     }
@@ -376,13 +418,13 @@ class Wrog : public Gracz {
 class Sedzia {
   private:
     int rozmiar_planszy,
-      max_liczba_punktow;
+      max_roznica_punktow;
 
   public:
-    Sedzia(int _r) : max_liczba_punktow(10), rozmiar_planszy(_r) {}
+    Sedzia(int _r) : max_roznica_punktow(10), rozmiar_planszy(_r) {}
 
     bool koniec_gry(Gracz *zenek, Gracz *wrog) {
-      return zenek->wynik() == max_liczba_punktow || wrog->wynik() == max_liczba_punktow;
+      return abs(zenek->wynik() - wrog->wynik()) > max_roznica_punktow;
     }
 
     void rozegraj_bitwe(Plansza &plansza_gracza, Plansza &plansza_wroga) {
@@ -405,6 +447,8 @@ class Sedzia {
                 sila_wroga += (*itw)->sila();
                 obrona_wroga += (*itw)->obrona();
               }
+              sila_gracza = (0.4 + (rand() % 50) / 100.0) * sila_gracza;
+              sila_wroga = (0.4 + (rand() % 50) / 100.0) * sila_wroga;
               int szkoda_gracza = max(0, sila_wroga - obrona_gracza),
                 szkoda_wroga = max(0, sila_gracza - obrona_wroga);
               for (itg = pionki_gracza.begin(); itg != pionki_gracza.end() && szkoda_gracza > 0; ) {
@@ -413,7 +457,6 @@ class Sedzia {
                 if (zycie <= szkoda_gracza) {
                   plansza_gracza.usun_z_pionkow(itp);
                   itg = plansza_gracza.usun_z_planszy(itg);
-                  cout << "Pionek gracza usmiercony!" << endl;
 
                 } else {
                   (*itg)->zmniejsz_zycie(szkoda_gracza);
@@ -428,7 +471,6 @@ class Sedzia {
                 if (zycie <= szkoda_wroga) {
                   plansza_wroga.usun_z_pionkow(itp);
                   itw = plansza_wroga.usun_z_planszy(itw);
-                  cout << "Pionek wroga usmiercony!" << endl;
                 } else {
                   (*itw)->zmniejsz_zycie(szkoda_wroga);
                   (*itp)->zmniejsz_zycie(szkoda_wroga);
@@ -442,7 +484,7 @@ class Sedzia {
     }
 };
 
-const int rozmiar_planszy = 12,
+const int rozmiar_planszy = 10,
   ilosc_rund = 20;
 Gracz *zenek,
   *wrog;
@@ -450,45 +492,51 @@ Sedzia *sedzia = new Sedzia(rozmiar_planszy);
 
 const int rozmiar_pola = 50,
   rozmiar_x = (rozmiar_planszy + 2) * rozmiar_pola,
-  rozmiar_y = rozmiar_planszy * rozmiar_pola;
+  rozmiar_y = (rozmiar_planszy) * rozmiar_pola;
 
-char rodzaj_akcji,
-  znak_pionka;
-int pozycja;
+char rodzaj_akcji, rodzaj_akcji2,
+  znak_pionka, znak_pionka2;
+int pozycja, pozycja2;
+bool kto;
 
-bool koniec_gry() {
-  return sedzia->koniec_gry(zenek, wrog);
-}
+enum { TARGET_ROOTWIN };
+static GtkTargetEntry target_list[] = { { "application/x-rootwindow-drop", 0, TARGET_ROOTWIN } };
+static guint n_targets = G_N_ELEMENTS (target_list);
 
 void wyswietl_widget(void *widget, void* data) {
-  cout << "wyswietl widget " << endl;
-
   gtk_widget_show ((GtkWidget*) widget);
 }
 
-void nowa_gra_ga(GtkWidget *widget, GList *list) {
-  cout << "nowa gra ga " << endl;
+void schowaj_widget(void *widget, void* data) {
+  gtk_widget_hide ((GtkWidget*) widget);
+}
 
+void nowa_gra(GtkWidget *widget, GList *list) {
+  g_list_foreach (list, schowaj_widget, NULL);
+}
+
+void nowa_gra_ga(GtkWidget *widget, GList *list) {
   zenek = new Zenek(rozmiar_planszy, GRACZ);
   wrog = new Wrog(rozmiar_planszy, AI);
 
   g_list_foreach (list, wyswietl_widget, NULL);
-  g_list_free (list);
 }
 
 void nowa_gra_aa(GtkWidget *widget, GList *list) {
-  cout << "nowa gra aa " << endl;
-
   zenek = new Zenek(rozmiar_planszy, AI);
   wrog = new Wrog(rozmiar_planszy, AI);
 
   g_list_foreach (list, wyswietl_widget, NULL);
-  g_list_free (list);
+}
+
+void nowa_gra_gg(GtkWidget *widget, GList *list) {
+  zenek = new Zenek(rozmiar_planszy, GRACZ);
+  wrog = new Wrog(rozmiar_planszy, GRACZ);
+
+  g_list_foreach (list, wyswietl_widget, NULL);
 }
 
 void wyswietl_plansze(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
-  cout << "wyswietl plansze" << endl;
-
   cairo_t *cr, *cr2;
 
   cr = gdk_cairo_create (widget->window);
@@ -505,7 +553,7 @@ void wyswietl_plansze(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
   double x, y = 3.0;
 
   for (int i = 0; i < rozmiar_planszy; i++) {
-    for (int j = 0; j < rozmiar_planszy + 2; j++) {
+    for (int j = 1; j <= rozmiar_planszy; j++) {
       if (zenek->plansza(i, j)) {
         switch (zenek->plansza(i, j)->repr()) {
           case 'R' : cairo_set_source_surface (cr, zwim, j * rozmiar_pola + 3, i * rozmiar_pola + 3);
@@ -556,104 +604,208 @@ void wyswietl_plansze(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
   cairo_set_source_rgb (cr, 0, 0, 0);
   cairo_set_line_width (cr, 0.1);
 
-  for (int i = 0; i < rozmiar_planszy + 3; i++) {
+  for (int i = 1; i < rozmiar_planszy + 2; i++) {
     cairo_move_to (cr, i * rozmiar_pola, 0);
-    cairo_line_to (cr, i * rozmiar_pola, rozmiar_planszy * rozmiar_pola);
+    cairo_line_to (cr, i * rozmiar_pola, (rozmiar_planszy) * rozmiar_pola);
+  }
+
+  for (int i = 0; i < rozmiar_planszy + 1; i++) {
     cairo_move_to (cr, 0, i * rozmiar_pola);
     cairo_line_to (cr, (rozmiar_planszy + 2) * rozmiar_pola, i  * rozmiar_pola);
   }
 
   cairo_stroke (cr);
 
+  cairo_set_source_rgb (cr2, 0.1, 0.1, 0.1);
+  cairo_select_font_face (cr2, "Courier", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+  cairo_set_font_size (cr2, 26);
+
+  for (int i = 0; i <= rozmiar_planszy; i++) {
+    char *str = (char*) malloc(3 * sizeof(char));
+    sprintf(str, "%d", i + 1);
+    if (i + 1 < 10) {
+      cairo_move_to(cr2, 15, i  * rozmiar_pola + rozmiar_pola * 0.65);
+      cairo_show_text(cr2, str);
+      cairo_move_to(cr2, (rozmiar_planszy + 1) * rozmiar_pola + 15, i  * rozmiar_pola + rozmiar_pola * 0.65);
+      cairo_show_text(cr2, str);
+    }
+    else {
+      cairo_move_to(cr2, 9, i  * rozmiar_pola + rozmiar_pola * 0.65);
+      cairo_show_text(cr2, str);
+      cairo_move_to(cr2, (rozmiar_planszy + 1) * rozmiar_pola + 9, i  * rozmiar_pola + rozmiar_pola * 0.65);
+      cairo_show_text(cr2, str);
+    }
+  }
+
   cairo_destroy (cr);
   cairo_destroy (cr2);
 }
 
 void aktualizuj_plansze(GtkWidget *widget, gpointer data) {
-  cout << "aktualizuj plansze " << endl;
-
   GdkRegion *region = gdk_drawable_get_clip_region (widget->window);
 
   gdk_window_invalidate_region (widget->window, region, TRUE);
   gdk_window_process_all_updates();
 
-  usleep(200000);
-}
-
-void zmien_akcje(GtkWidget *widget, const char *rodzaj) {
-  cout << "zmien akcje " << endl;
-
-  rodzaj_akcji = *rodzaj;
-}
-
-void zmien_pionek(GtkWidget *widget, gpointer data) {
-  cout << "zmien pionek " << endl;
-
-  znak_pionka = *gtk_combo_box_get_active_text (GTK_COMBO_BOX (widget));
-}
-
-void zmien_pozycje(GtkWidget *widget, gpointer data) {
-  cout << "zmien pozycje " << endl;
-
-  pozycja = atoi(gtk_combo_box_get_active_text (GTK_COMBO_BOX (widget)));
+  usleep(150000);
 }
 
 void wczytaj_ruch(GtkWidget *widget, gpointer data) {
-  cout << "wczytaj ruch " << endl;
-  cout << "rodzaj akcji: " << rodzaj_akcji << " znak pionka: " << znak_pionka << " pozycja: " << pozycja << endl;
-
   Akcja *akcja = new Akcja(rodzaj_akcji, znak_pionka, pozycja);
+  Akcja *akcja2 = new Akcja(rodzaj_akcji2, znak_pionka2, pozycja2);
 
   zenek->wczytaj_ruch(akcja);
-  wrog->wczytaj_ruch(akcja);
+  wrog->wczytaj_ruch(akcja2);
 
   rodzaj_akcji = 'X';
+  rodzaj_akcji2 = 'X';
 }
 
 void przesun_pionki(GtkWidget *widget, gpointer data) {
-  //cout << "przesun pionki " << endl;
-
   zenek->przesun_pionki(wrog->plansza());
   wrog->przesun_pionki(zenek->plansza());
 }
 
 void rozegraj_bitwe(GtkWidget *widget, gpointer data) {
-  //cout << "pozegraj bitwe " << endl;
-
   sedzia->rozegraj_bitwe(zenek->plansza(), wrog->plansza());
 }
 
 void aktualizuj_wynik(GtkWidget *widget, GtkLabel *label) {
-  //cout << "aktualizuj wynik " << endl;
-
   char *str = (char*) malloc(6 * sizeof(char));
   sprintf(str, "%d : %d", zenek->wynik(), wrog->wynik());
   gtk_label_set_text (label, (gchar*) str);
 }
 
-void aktywuj_produkcje(GtkWidget *widget, GtkWidget *button) {
-  //cout << "aktywuj produkcje" << endl;
+void zeruj_wynik(GtkWidget *widget, GtkLabel *label) {
+  gtk_label_set_text (label, (gchar*) "0 : 0");
+}
 
+void zmien_akcje(GtkWidget *widget, const char *rodzaj) {
+  rodzaj_akcji = *rodzaj;
+  kto = 0;
+}
+
+void zmien_akcje2(GtkWidget *widget, const char *rodzaj) {
+  rodzaj_akcji2 = *rodzaj;
+  kto = 1;
+}
+
+void zmien_pionek(GtkWidget *widget, gpointer data) {
+  znak_pionka = *gtk_combo_box_get_active_text (GTK_COMBO_BOX (widget));
+}
+
+void zmien_pozycje(GtkWidget *widget, gpointer data) {
+  pozycja = atoi(gtk_combo_box_get_active_text (GTK_COMBO_BOX (widget)));
+}
+
+void zmien_pionek1(GtkWidget *widget, GdkDragContext *context, const char* rodzaj) {
+  cout << "zmien pionek 1" << endl;
+  rodzaj_akcji = 'P';
+  znak_pionka = *rodzaj;
+  kto = 0;
+
+  GtkWidget *image;
+  GdkPixbuf *pixbuf;
+
+  if (znak_pionka == 'R')
+    image = gtk_image_new_from_file ("png/zw.png");
+  else
+    image = gtk_image_new_from_file ("png/zd.png");
+
+  pixbuf = gtk_image_get_pixbuf (GTK_IMAGE (image));
+  gtk_drag_set_icon_pixbuf (context, pixbuf, -2, -2);
+}
+
+void zmien_pionek2(GtkWidget *widget, GdkDragContext *context, const char* rodzaj) {
+  cout << "zmien pionek 2" << endl;
+  rodzaj_akcji2 = 'P';
+  znak_pionka2 = *rodzaj;
+  kto = 1;
+
+  GtkWidget *image;
+  GdkPixbuf *pixbuf;
+
+  if (znak_pionka2 == 'R')
+    image = gtk_image_new_from_file ("png/ww.png");
+  else
+    image = gtk_image_new_from_file ("png/wd.png");
+
+  pixbuf = gtk_image_get_pixbuf (GTK_IMAGE (image));
+  gtk_drag_set_icon_pixbuf (context, pixbuf, -2, -2);
+}
+
+void zmien_pozycje12(GtkWidget *widget, GdkDragContext *context, gint x, gint y, guint time, gpointer user_data) {
+  if (kto == 0) {
+    pozycja = (int) y / 50 + 1;
+    cout << "pozycja 1: " << pozycja << endl;
+  }
+  else {
+    pozycja2 = (int) y / 50 + 1;
+    cout << "pozycja 2: " << pozycja2 << endl;
+  }
+}
+
+void czysc_ruch1(GtkWidget *widget, GdkDragContext *context, gpointer user_data) {
+  cout << "czysc ruch 1" << endl;
+  rodzaj_akcji = 'X';
+}
+
+void czysc_ruch2(GtkWidget *widget, GdkDragContext *context, gpointer user_data) {
+  cout << "czysc ruch 2" << endl;
+  rodzaj_akcji2 = 'X';
+}
+
+void zmien_pionek31(GtkWidget *widget, const char* rodzaj) {
+  znak_pionka = *rodzaj;
+  kto = 0;
+}
+
+void zmien_pionek32(GtkWidget *widget, const char* rodzaj) {
+  znak_pionka2 = *rodzaj;
+  kto = 1;
+}
+
+void zmien_pozycje3(GtkWidget *widget, GdkEventMotion *event) {
+  if (kto == 0) {
+    rodzaj_akcji = 'P';
+    pozycja = (int) event->y / 50 + 1;
+  } else {
+    rodzaj_akcji2 = 'P';
+    pozycja2 = (int) event->y / 50 + 1;
+  }
+}
+
+void aktywuj_produkcje(GtkWidget *widget, GtkWidget *button) {
   bool blokada = zenek->blokada();
   gtk_widget_set_sensitive (button, !blokada);
 }
 
 void aktywuj_zatrzymanie(GtkWidget *widget, GtkWidget *button) {
-  //cout << "aktywuj zatrzymanie " << endl;
-
   bool blokada = zenek->blokada();
   gtk_widget_set_sensitive (button, blokada);
 }
 
-void aktywuj_box(GtkWidget *widget, GtkWidget *box) {
-  //cout << "aktywuj box " << endl;
+void aktywuj_produkcje2(GtkWidget *widget, GtkWidget *button) {
+  bool blokada = wrog->blokada();
+  gtk_widget_set_sensitive (button, !blokada);
+}
 
+void aktywuj_zatrzymanie2(GtkWidget *widget, GtkWidget *button) {
+  bool blokada = wrog->blokada();
+  gtk_widget_set_sensitive (button, blokada);
+}
+
+void zablokuj_nastepny(GtkWidget *widget, GtkWidget *button) {
+  bool koniec = sedzia->koniec_gry(zenek, wrog);
+  if (koniec)
+    gtk_widget_set_sensitive (button, !koniec);
+}
+
+void aktywuj_box(GtkWidget *widget, GtkWidget *box) {
   gtk_widget_set_sensitive (box, TRUE);
 }
 
 void deaktywuj_box(GtkWidget *widget, GtkWidget *box) {
-  //cout << "deaktywuj box " << endl;
-
   gtk_widget_set_sensitive (box, FALSE);
 }
 
@@ -662,10 +814,12 @@ void deaktywuj_box(GtkWidget *widget, GtkWidget *box) {
 int main(int argc, char *argv[]) {
   srand(time(0));
 
-  GtkWidget *window, *vbox, *darea, *hbox, *wbox, *label, *wlabel, *separator, *pbutt, *rsbox, *pbox, *zbutt, *nbutt,
-    *mbar, *oitem, *menu, *gaitem, *aaitem, *ggitem, *zitem, *rscombo, *pcombo, *rspbox, *bbutt, *aanbutt;
+  GtkWidget *window, *vbox, *mbar, *oitem, *menu, *gaitem, *aaitem, *ggitem, *zitem, *evbox, *darea,
+  *hbox, *wbox, *wlabel, *pbutt, *rspbox, *rsbox, *rscombo, *pbox, *pcombo, *zbutt, *nbutt,*aanbutt,
+  *ggvbox, *gghbox, *ggrbutt, *ggsbutt, *ggzbutt, *gghbox2, *ggrbutt2, *ggsbutt2, *ggzbutt2, *ggnbutt,
+  *label, *separator, *im;
 
-  GList *galist = NULL, *aalist = NULL;
+  GList *galist = NULL, *aalist = NULL, *gglist = NULL;
 
   gtk_init (&argc, &argv);
 
@@ -673,6 +827,7 @@ int main(int argc, char *argv[]) {
 
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title (GTK_WINDOW (window), "Krwawa gra");
+  gtk_window_set_resizable (GTK_WINDOW (window), FALSE);
   gtk_container_set_border_width (GTK_CONTAINER (window), 5);
   g_signal_connect (window, "delete_event", G_CALLBACK  (gtk_main_quit), NULL);
   g_signal_connect (window, "destroy", G_CALLBACK  (gtk_main_quit), NULL);
@@ -702,21 +857,41 @@ int main(int argc, char *argv[]) {
   aaitem = gtk_menu_item_new_with_label ("AI vs AI");
   gtk_menu_shell_append (GTK_MENU_SHELL (menu), aaitem);
   gtk_widget_show (aaitem);
+  ggitem = gtk_menu_item_new_with_label ("Gracz vs Gracz");
+  gtk_menu_shell_append (GTK_MENU_SHELL (menu), ggitem);
+  gtk_widget_show (ggitem);
 
   zitem = gtk_menu_item_new_with_label ("Zakoncz gre");
   gtk_menu_shell_append (GTK_MENU_SHELL (menu), zitem);
   g_signal_connect (G_OBJECT (zitem), "activate", G_CALLBACK (gtk_main_quit), NULL);
   gtk_widget_show (zitem);
 
+  // evbox
+
+  evbox = gtk_event_box_new ();
+  gtk_widget_set_size_request (evbox, rozmiar_x + 10, rozmiar_y + 10);
+  gtk_container_set_border_width (GTK_CONTAINER (evbox), 5);
+  gtk_container_add (GTK_CONTAINER (vbox), evbox);
+  g_signal_connect (evbox, "button_press_event", G_CALLBACK (zmien_pozycje3), NULL);
+  gtk_widget_add_events (evbox, GDK_BUTTON_PRESS_MASK);
+
+  galist = g_list_append (galist, evbox);
+  aalist = g_list_append (aalist, evbox);
+  gglist = g_list_append (gglist, evbox);
+
+  gtk_drag_dest_set (evbox, (GtkDestDefaults)(GTK_DEST_DEFAULT_MOTION | GTK_DEST_DEFAULT_HIGHLIGHT), target_list, n_targets, GDK_ACTION_COPY);
+  g_signal_connect (evbox, "drag-drop", G_CALLBACK (zmien_pozycje12), NULL);
+
   // darea
 
   darea = gtk_drawing_area_new();
   gtk_drawing_area_size (GTK_DRAWING_AREA (darea), rozmiar_x, rozmiar_y);
-  gtk_box_pack_start (GTK_BOX (vbox), darea, FALSE, FALSE, 5);
+  gtk_container_add (GTK_CONTAINER (evbox), darea);
   g_signal_connect (darea, "expose-event", G_CALLBACK (wyswietl_plansze), NULL);
 
   galist = g_list_append (galist, darea);
   aalist = g_list_append (aalist, darea);
+  gglist = g_list_append (gglist, darea);
 
   // hbox
 
@@ -725,6 +900,7 @@ int main(int argc, char *argv[]) {
 
   galist = g_list_append (galist, hbox);
   aalist = g_list_append (aalist, hbox);
+  gglist = g_list_append (gglist, hbox);
 
   // wbox
 
@@ -733,7 +909,7 @@ int main(int argc, char *argv[]) {
 
   label = gtk_label_new ("Wynik");
   gtk_box_pack_start (GTK_BOX (wbox), label, TRUE, TRUE, 0);
-  wlabel = gtk_label_new ("0:0");
+  wlabel = gtk_label_new ("0 : 0");
   gtk_box_pack_start (GTK_BOX (wbox), wlabel, TRUE, TRUE, 0);
 
   separator = gtk_vseparator_new ();
@@ -748,6 +924,11 @@ int main(int argc, char *argv[]) {
   aalist = g_list_append (aalist, label);
   aalist = g_list_append (aalist, wlabel);
   aalist = g_list_append (aalist, separator);
+
+  gglist = g_list_append (gglist, wbox);
+  gglist = g_list_append (gglist, label);
+  gglist = g_list_append (gglist, wlabel);
+  gglist = g_list_append (gglist, separator);
 
   // pbutt
 
@@ -771,7 +952,7 @@ int main(int argc, char *argv[]) {
   gtk_box_pack_start (GTK_BOX (rspbox), rsbox, TRUE, TRUE, 0);
   g_signal_connect (pbutt, "clicked", G_CALLBACK (aktywuj_box), rsbox);
 
-  label = gtk_label_new ("Pionek");
+  label = gtk_label_new ("Rodzaj pionka");
   gtk_box_pack_start (GTK_BOX (rsbox), label, TRUE, TRUE, 0);
 
   rscombo = gtk_combo_box_new_text();
@@ -814,27 +995,23 @@ int main(int argc, char *argv[]) {
   gtk_box_pack_start (GTK_BOX (hbox), zbutt, TRUE, TRUE, 0);
   g_signal_connect (zbutt, "clicked", G_CALLBACK (zmien_akcje), (gpointer) "Z");
 
-  bbutt = gtk_button_new_with_mnemonic("_Brak");
-  gtk_box_pack_start (GTK_BOX (hbox), bbutt, TRUE, TRUE, 0);
-  g_signal_connect (bbutt, "clicked", G_CALLBACK (zmien_akcje), (gpointer) "X");
-
   separator = gtk_vseparator_new ();
   gtk_box_pack_start (GTK_BOX (hbox), separator, TRUE, TRUE, 0);
 
   galist = g_list_append (galist, zbutt);
-  galist = g_list_append (galist, bbutt);
   galist = g_list_append (galist, separator);
 
   // nbutt
 
   nbutt = gtk_button_new_with_mnemonic ("_Nastepna runda");
-  gtk_widget_set_sensitive (nbutt, FALSE);
+  //gtk_widget_set_sensitive (nbutt, FALSE);
   gtk_box_pack_start (GTK_BOX (hbox), nbutt, TRUE, TRUE, 0);
+
+  galist = g_list_append (galist, nbutt);
 
   g_signal_connect (pcombo, "changed", G_CALLBACK (aktywuj_box), nbutt);
   g_signal_connect (zbutt, "clicked", G_CALLBACK (aktywuj_box), nbutt);
-  g_signal_connect (bbutt, "clicked", G_CALLBACK (aktywuj_box), nbutt);
-  g_signal_connect (nbutt, "clicked", G_CALLBACK (deaktywuj_box), nbutt);
+  g_signal_connect (pbutt, "clicked", G_CALLBACK (deaktywuj_box), nbutt);
 
   g_signal_connect (nbutt, "clicked", G_CALLBACK (wczytaj_ruch), NULL);
   g_signal_connect (nbutt, "clicked", G_CALLBACK (aktualizuj_plansze), NULL);
@@ -850,13 +1027,16 @@ int main(int argc, char *argv[]) {
   g_signal_connect (nbutt, "clicked", G_CALLBACK (deaktywuj_box), rsbox);
   g_signal_connect (nbutt, "clicked", G_CALLBACK (deaktywuj_box), pbox);
 
-  galist = g_list_append (galist, nbutt);
-  g_signal_connect (G_OBJECT (gaitem), "activate", G_CALLBACK (nowa_gra_ga), (gpointer) galist);
+  g_signal_connect (nbutt, "clicked", G_CALLBACK (zablokuj_nastepny), nbutt);
+  g_signal_connect (nbutt, "clicked", G_CALLBACK (zablokuj_nastepny), pbutt);
+  g_signal_connect (nbutt, "clicked", G_CALLBACK (zablokuj_nastepny), zbutt);
 
   // aanbutt
 
   aanbutt = gtk_button_new_with_mnemonic ("_Nastepna runda");
   gtk_box_pack_start (GTK_BOX (hbox), aanbutt, TRUE, TRUE, 0);
+
+  aalist = g_list_append (aalist, aanbutt);
 
   g_signal_connect (aanbutt, "clicked", G_CALLBACK (wczytaj_ruch), NULL);
   g_signal_connect (aanbutt, "clicked", G_CALLBACK (aktualizuj_plansze), NULL);
@@ -866,10 +1046,167 @@ int main(int argc, char *argv[]) {
   g_signal_connect (aanbutt, "clicked", G_CALLBACK (rozegraj_bitwe), NULL);
   g_signal_connect (aanbutt, "clicked", G_CALLBACK (aktualizuj_plansze), NULL);
 
-  aalist = g_list_append (aalist, aanbutt);
-  g_signal_connect (G_OBJECT (aaitem), "activate", G_CALLBACK (nowa_gra_aa), (gpointer) aalist);
+  g_signal_connect (aanbutt, "clicked", G_CALLBACK (zablokuj_nastepny), aanbutt);
 
-  //gtk_widget_show_all (window);
+  // ggvbox
+
+  ggvbox = gtk_hbox_new (FALSE, 0);
+  gtk_container_add (GTK_CONTAINER (hbox), ggvbox);
+
+  gglist = g_list_append (gglist, ggvbox);
+
+  // gghbox
+
+  gghbox = gtk_hbox_new (FALSE, 0);
+  gtk_container_add (GTK_CONTAINER (ggvbox), gghbox);
+
+  gglist = g_list_append (gglist, gghbox);
+
+  // ggrbutt
+
+  ggrbutt = gtk_button_new();
+  im = gtk_image_new_from_file("png/zw.png");
+  gtk_container_add (GTK_CONTAINER (ggrbutt), im);
+  gtk_box_pack_start (GTK_BOX (gghbox), ggrbutt, TRUE, TRUE, 0);
+  g_signal_connect (ggrbutt, "clicked", G_CALLBACK (zmien_pionek31), (gpointer) "R");
+
+  gglist = g_list_append (gglist, ggrbutt);
+  gglist = g_list_append (gglist, im);
+
+  gtk_drag_source_set (ggrbutt, GDK_BUTTON1_MASK, target_list, n_targets, GDK_ACTION_COPY);
+  g_signal_connect (ggrbutt, "drag-begin", G_CALLBACK (zmien_pionek1), (gpointer) "R");
+  g_signal_connect (ggrbutt, "drag-end", G_CALLBACK (czysc_ruch1), NULL);
+
+  // ggsbutt
+
+  ggsbutt = gtk_button_new();
+  im = gtk_image_new_from_file("png/zd.png");
+  gtk_container_add (GTK_CONTAINER (ggsbutt), im);
+  gtk_box_pack_start (GTK_BOX (gghbox), ggsbutt, TRUE, TRUE, 0);
+  g_signal_connect (ggsbutt, "clicked", G_CALLBACK (zmien_pionek31), (gpointer) "S");
+
+  gglist = g_list_append (gglist, ggsbutt);
+  gglist = g_list_append (gglist, im);
+
+  gtk_drag_source_set (ggsbutt, GDK_BUTTON1_MASK, target_list, n_targets, GDK_ACTION_COPY);
+  g_signal_connect (ggsbutt, "drag-begin", G_CALLBACK (zmien_pionek1), (gpointer) "S");
+  g_signal_connect (ggsbutt, "drag-end", G_CALLBACK (czysc_ruch1), NULL);
+
+  // ggzbutt
+
+  ggzbutt = gtk_button_new_with_mnemonic("_Zatrzymanie");
+  gtk_widget_set_sensitive (ggzbutt, FALSE);
+  gtk_box_pack_start (GTK_BOX (gghbox), ggzbutt, TRUE, TRUE, 0);
+  g_signal_connect (ggzbutt, "clicked", G_CALLBACK (zmien_akcje), (gpointer) "Z");
+
+  gglist = g_list_append (gglist, ggzbutt);
+
+  // gghbox2
+
+  gghbox2 = gtk_hbox_new (FALSE, 0);
+  gtk_container_add (GTK_CONTAINER (ggvbox), gghbox2);
+
+  gglist = g_list_append (gglist, gghbox2);
+
+  // ggrbutt2
+
+  ggrbutt2 = gtk_button_new();
+  im = gtk_image_new_from_file("png/ww.png");
+  gtk_container_add (GTK_CONTAINER (ggrbutt2), im);
+  gtk_box_pack_start (GTK_BOX (gghbox2), ggrbutt2, TRUE, TRUE, 0);
+  g_signal_connect (ggrbutt2, "clicked", G_CALLBACK (zmien_pionek32), (gpointer) "R");
+
+  gglist = g_list_append (gglist, ggrbutt2);
+  gglist = g_list_append (gglist, im);
+
+  gtk_drag_source_set (ggrbutt2, GDK_BUTTON1_MASK, target_list, n_targets, GDK_ACTION_COPY);
+  g_signal_connect (ggrbutt2, "drag-begin", G_CALLBACK (zmien_pionek2), (gpointer) "R");
+  g_signal_connect (ggrbutt2, "drag-end", G_CALLBACK (czysc_ruch2), NULL);
+
+  // ggsbutt2
+
+  ggsbutt2 = gtk_button_new();
+  im = gtk_image_new_from_file("png/wd.png");
+  gtk_container_add (GTK_CONTAINER (ggsbutt2), im);
+  gtk_box_pack_start (GTK_BOX (gghbox2), ggsbutt2, TRUE, TRUE, 0);
+  g_signal_connect (ggsbutt2, "clicked", G_CALLBACK (zmien_pionek32), (gpointer) "S");
+
+  gglist = g_list_append (gglist, ggsbutt2);
+  gglist = g_list_append (gglist, im);
+
+  gtk_drag_source_set (ggsbutt2, GDK_BUTTON1_MASK, target_list, n_targets, GDK_ACTION_COPY);
+  g_signal_connect (ggsbutt2, "drag-begin", G_CALLBACK (zmien_pionek2), (gpointer) "S");
+  g_signal_connect (ggsbutt2, "drag-end", G_CALLBACK (czysc_ruch2), NULL);
+
+  // ggzbutt2
+
+  ggzbutt2 = gtk_button_new_with_mnemonic("_Zatrzymanie");
+  gtk_widget_set_sensitive (ggzbutt2, FALSE);
+  gtk_box_pack_start (GTK_BOX (gghbox2), ggzbutt2, TRUE, TRUE, 0);
+  g_signal_connect (ggzbutt2, "clicked", G_CALLBACK (zmien_akcje2), (gpointer) "Z");
+
+  gglist = g_list_append (gglist, ggzbutt2);
+
+  // separator
+
+  separator = gtk_vseparator_new ();
+  gtk_box_pack_start (GTK_BOX (hbox), separator, TRUE, TRUE, 0);
+
+  gglist = g_list_append (gglist, separator);
+
+  // ggnbutt
+
+  ggnbutt = gtk_button_new_with_mnemonic ("_Nastepna runda");
+  gtk_box_pack_start (GTK_BOX (hbox), ggnbutt, TRUE, TRUE, 0);
+
+  gglist = g_list_append (gglist, ggnbutt);
+
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (wczytaj_ruch), NULL);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (aktualizuj_plansze), NULL);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (przesun_pionki), NULL);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (aktualizuj_plansze), NULL);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (aktualizuj_wynik), wlabel);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (rozegraj_bitwe), NULL);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (aktualizuj_plansze), NULL);
+
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (aktywuj_produkcje), ggrbutt);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (aktywuj_produkcje2), ggrbutt2);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (aktywuj_produkcje), ggsbutt);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (aktywuj_produkcje2), ggsbutt2);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (aktywuj_zatrzymanie), ggzbutt);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (aktywuj_zatrzymanie2), ggzbutt2);
+
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (zablokuj_nastepny), ggnbutt);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (zablokuj_nastepny), ggrbutt);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (zablokuj_nastepny), ggrbutt2);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (zablokuj_nastepny), ggsbutt);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (zablokuj_nastepny), ggsbutt2);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (zablokuj_nastepny), ggzbutt);
+  g_signal_connect (ggnbutt, "clicked", G_CALLBACK (zablokuj_nastepny), ggzbutt2);
+
+  // galist
+
+  g_signal_connect (G_OBJECT (gaitem), "activate", G_CALLBACK (nowa_gra), (gpointer) galist);
+  g_signal_connect (G_OBJECT (gaitem), "activate", G_CALLBACK (nowa_gra), (gpointer) aalist);
+  g_signal_connect (G_OBJECT (gaitem), "activate", G_CALLBACK (nowa_gra), (gpointer) gglist);
+  g_signal_connect (G_OBJECT (gaitem), "activate", G_CALLBACK (nowa_gra_ga), (gpointer) galist);
+  g_signal_connect (G_OBJECT (gaitem), "activate", G_CALLBACK (zeruj_wynik), wlabel);
+
+  // aalist
+
+  g_signal_connect (G_OBJECT (aaitem), "activate", G_CALLBACK (nowa_gra), (gpointer) galist);
+  g_signal_connect (G_OBJECT (aaitem), "activate", G_CALLBACK (nowa_gra), (gpointer) aalist);
+  g_signal_connect (G_OBJECT (aaitem), "activate", G_CALLBACK (nowa_gra), (gpointer) gglist);
+  g_signal_connect (G_OBJECT (aaitem), "activate", G_CALLBACK (nowa_gra_aa), (gpointer) aalist);
+  g_signal_connect (G_OBJECT (aaitem), "activate", G_CALLBACK (zeruj_wynik), wlabel);
+
+  // gglist
+
+  g_signal_connect (G_OBJECT (ggitem), "activate", G_CALLBACK (nowa_gra), (gpointer) aalist);
+  g_signal_connect (G_OBJECT (ggitem), "activate", G_CALLBACK (nowa_gra), (gpointer) galist);
+  g_signal_connect (G_OBJECT (ggitem), "activate", G_CALLBACK (nowa_gra), (gpointer) gglist);
+  g_signal_connect (G_OBJECT (ggitem), "activate", G_CALLBACK (nowa_gra_gg), (gpointer) gglist);
+  g_signal_connect (G_OBJECT (ggitem), "activate", G_CALLBACK (zeruj_wynik), wlabel);
 
   gtk_main();
 
