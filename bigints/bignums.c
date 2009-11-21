@@ -31,7 +31,7 @@ bignum from_str(const char *str) {
   return x;
 }
 
-bignum from_int(long long n) {
+bignum from_int(const long long n) {
   char *str = calloc(20, sizeof(char));
   sprintf(str, "%lld", n);
   bignum x = from_str(str);
@@ -40,7 +40,7 @@ bignum from_int(long long n) {
   return x;
 }
 
-const char* to_str(bignum x) {
+const char* to_str(const bignum x) {
   char* str, *tmp;
 
   str = calloc(x.len * DIGS + 1, sizeof(char));
@@ -60,7 +60,7 @@ const char* to_str(bignum x) {
   return str;
 }
 
-long long to_int(bignum x) {
+long long to_int(const bignum x) {
   long long n = 0;
   
   int i;
@@ -70,7 +70,22 @@ long long to_int(bignum x) {
   return n;
 }
 
-bignum plus (bignum x, bignum y) {
+bignum copy(const bignum b) {
+  bignum x;
+  x.len = b.len;
+  x.num = calloc(x.len, sizeof(int));
+  memcpy(x.num, b.num, x.len * sizeof(int));
+  return x;
+}
+
+void xcopy(bignum *b, const bignum b2) {
+  free(b->num);
+  b->len = b2.len;
+  b->num = calloc(b->len, sizeof(int));
+  memcpy(b->num, b2.num, b->len * sizeof(int));
+}
+
+bignum plus (const bignum x, const bignum y) {
   bignum z;
   z.len = min(x.len, y.len);
   int len = max(x.len, y.len) + 1;
@@ -115,7 +130,7 @@ bignum plus (bignum x, bignum y) {
   }
 }
 
-bignum minusb (bignum x, bignum y) {
+bignum minusb (const bignum x, const bignum y) {
   bignum z;
   z.len = x.len;
   int len = x.len;
@@ -153,7 +168,7 @@ bignum minusb (bignum x, bignum y) {
   }
 }
 
-int lesser (bignum x, bignum y) {
+int lesser (const bignum x, const bignum y) {
   if (x.len < y.len)
     return 1;
   if (x.len > y.len)
@@ -172,15 +187,15 @@ int lesser (bignum x, bignum y) {
     return 0;
 }
 
-int greater (bignum x, bignum y) {
+int greater (const bignum x, const bignum y) {
   return lesser(y, x);
 }
 
-int equal(bignum x, bignum y) {
+int equal(const bignum x, const bignum y) {
   return !lesser(x, y) && !lesser(y, x);
 }
 
-bignum mul_int (bignum x, int y) {
+bignum mul_int (const bignum x, const int y) {
   bignum z;
   z.len = x.len;
   int len = x.len + DIGS;
@@ -214,7 +229,7 @@ bignum mul_int (bignum x, int y) {
   }
 }
 
-int mod_int (bignum x, int y) {
+int mod_int (const bignum x, const int y) {
   long long z = (long long)(x.num[x.len - 1]) % y;
 
   int i;
@@ -224,7 +239,7 @@ int mod_int (bignum x, int y) {
   return z;
 }
 
-bignum div_int (bignum x, int y) {
+bignum div_int (const bignum x, const int y) {
   bignum z;
   z.len = x.len;
   int len = x.len;
@@ -255,7 +270,7 @@ bignum div_int (bignum x, int y) {
   }
 }
 
-bignum multiply (bignum x, bignum y) {
+bignum multiply (const bignum x, const bignum y) {
   bignum z, zero;
   int len = x.len + y.len;
 
@@ -266,13 +281,16 @@ bignum multiply (bignum x, bignum y) {
   z.len = 1;
   z.num = calloc(len, sizeof(int));
   z.num[0] = 0;
+  
+  bignum xx = copy(x),
+    yy = copy(y);
 
-  while (greater(y, zero)) {
-    if (mod_int(y, 2) == 1)
-      z = plus(z, x);
+  while (greater(yy, zero)) {
+    if (mod_int(yy, 2) == 1)
+      z = plus(z, xx);
 
-    x = mul_int(x, 2);
-    y = div_int(y, 2);
+    xx = mul_int(xx, 2);
+    yy = div_int(yy, 2);
   }
 
   free(zero.num);
@@ -291,7 +309,7 @@ bignum multiply (bignum x, bignum y) {
   }
 }
 
-bignum divide (bignum x, bignum y) {
+bignum divide (const bignum x, const bignum y) {
   bignum z;
   z.len = x.len - y.len + 1;
   int len = x.len;
@@ -358,17 +376,8 @@ bignum divide (bignum x, bignum y) {
   }
 }
 
-bignum modulo (bignum x, bignum y) {
+bignum modulo (const bignum x, const bignum y) {
   return minusb(x, multiply(y, divide(x, y)));
-}
-
-bignum copy(bignum b) {
-  bignum x;
-  x.len = b.len;
-  x.num = calloc(x.len, sizeof(int));
-  memcpy(x.num, b.num, x.len * sizeof(int));
-  
-  return x;
 }
 
 void del(bignum *b) {

@@ -18,19 +18,20 @@ typedef struct {
 } bignum;
 
 bignum from_str(const char *str);
-bignum from_int(long long n);
-const char* to_str(bignum x);
-long long to_int(bignum x);
-bignum plus (bignum x, bignum y);
-bignum minusb (bignum x, bignum y);
-int lesser (bignum x, bignum y);
-bignum mul_int (bignum x, int y);
-int mod_int (bignum x, int y);
-bignum div_int (bignum x, int y);
-bignum multiply (bignum x, bignum y);
-bignum divide (bignum x, bignum y);
-bignum modulo (bignum x, bignum y);
-bignum copy(bignum b);
+bignum from_int(const long long n);
+const char* to_str(const bignum x);
+long long to_int(const bignum x);
+bignum copy(const bignum b);
+void xcopy(bignum *b, const bignum b2);
+bignum plus (const bignum x, const bignum y);
+bignum minusb (const bignum x, const bignum y);
+int lesser (const bignum x, const bignum y);
+bignum mul_int (const bignum x, const int y);
+int mod_int (const bignum x, const int y);
+bignum div_int (const bignum x, const int y);
+bignum multiply (const bignum x, const bignum y);
+bignum divide (const bignum x, const bignum y);
+bignum modulo (const bignum x, const bignum y);
 void del(bignum *b);
 
 #endif

@@ -11,8 +11,10 @@ Bigint::Bigint(const Bigint &bi) {
 }
 
 Bigint& Bigint::operator= (const Bigint& bi) {
-  bigint = copy(bi.bigint);
-  minus = bi.minus;
+  if (this != &bi) {
+    xcopy(&bigint, bi.bigint);
+    minus = bi.minus;
+  }
   return *this;
 }
 
@@ -81,6 +83,47 @@ Bigint Bigint::operator- (Bigint bi) {
   Bigint bi2(bi.bigint, (-1) * bi.minus);
   return Bigint((*this) + bi2);
 }
+
+Bigint Bigint::operator* (Bigint bi) {
+  bignum b1 = bigint;
+  int m1 = minus;
+  bignum b2 = bi.bigint;
+  int m2 = bi.minus;
+  
+  bignum b = multiply(b1, b2);
+  int m = m1 * m2;
+  return Bigint(b, m);
+}
+
+Bigint Bigint::operator/ (Bigint bi) {
+  bignum b1 = bigint;
+  int m1 = minus;
+  bignum b2 = bi.bigint;
+  int m2 = bi.minus;
+  
+  bignum b = divide(b1, b2);
+  int m = m1 * m2;
+  return Bigint(b, m);
+} 
+
+Bigint Bigint::operator% (Bigint bi) {
+  bignum b1 = bigint;
+  int m1 = minus;
+  bignum b2 = bi.bigint;
+  int m2 = bi.minus;
+  
+  bignum b = modulo(b1, b2);
+  int m;
+  if (m1 == 1 && m2 == 1) 
+    m = 1;
+  else if (m1 == -1 && m2 == -1)
+    m = -1;
+  else if (m1 == 1 && m2 == -1) 
+    m = 1;
+  else
+    m = -1;
+  return Bigint(b, m);
+} 
 
 Bigint::~Bigint() {
   del(&bigint);

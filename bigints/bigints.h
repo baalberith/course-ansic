@@ -20,8 +20,11 @@ class Bigint {
     Bigint(long long n);
     operator string();
     operator long long();
-    Bigint operator+ (Bigint b);
-    Bigint operator- (Bigint b);
+    Bigint operator+ (Bigint bi);
+    Bigint operator- (Bigint bi);
+    Bigint operator* (Bigint bi);
+    Bigint operator/ (Bigint bi);
+    Bigint operator% (Bigint bi);
     ~Bigint();
 };
 
