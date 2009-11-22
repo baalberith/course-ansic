@@ -26,6 +26,8 @@ void xcopy(bignum *b, const bignum b2);
 bignum plus (const bignum x, const bignum y);
 bignum minusb (const bignum x, const bignum y);
 int lesser (const bignum x, const bignum y);
+int greater (const bignum x, const bignum y);
+int equal (const bignum x, const bignum y);
 bignum mul_int (const bignum x, const int y);
 int mod_int (const bignum x, const int y);
 bignum div_int (const bignum x, const int y);
