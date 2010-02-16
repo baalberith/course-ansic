@@ -1,189 +1,268 @@
 #include "lesson03.h"
+
 #include <cmath>
-#define PI 3.14159265
 #include <fstream>
+
+#define PI 3.14159265
+
 using namespace std;
+
 
 Labirynt::Labirynt() {}
 
-int Labirynt::LoadGLTextures() {
-    int status = false;
-    SDL_Surface *TextureImage[4];
 
-    if ((TextureImage[0] = SDL_LoadBMP("mot096.bmp")) && (TextureImage[1] = SDL_LoadBMP( "mot069.bmp")) &&
-        (TextureImage[2] = SDL_LoadBMP("mot099.bmp")) && (TextureImage[3] = SDL_LoadBMP( "mot066.bmp"))) {
-	    status = true;
+int Labirynt::loadtextures() {
+  int status = false;
+  SDL_Surface *TextureImage[4];
 
-	    glGenTextures(4, &texture[0]);
+  if ((TextureImage[0] = SDL_LoadBMP("mot096.bmp")) && (TextureImage[1] = SDL_LoadBMP( "mot069.bmp")) &&
+      (TextureImage[2] = SDL_LoadBMP("mot099.bmp")) && (TextureImage[3] = SDL_LoadBMP( "mot066.bmp"))) {
 
-	    for (int i = 0; i < 4; i++) {
-            glBindTexture(GL_TEXTURE_2D, texture[i]);
+    status = true;
 
-            glTexImage2D(GL_TEXTURE_2D, 0, 3, TextureImage[i]->w, TextureImage[i]->h, 0, GL_BGR, GL_UNSIGNED_BYTE, TextureImage[i]->pixels);
-
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        }
-    }
+    glGenTextures(4, &texture[0]);
 
     for (int i = 0; i < 4; i++) {
-        if (TextureImage[i]) SDL_FreeSurface(TextureImage[i]);
-    }
+      glBindTexture(GL_TEXTURE_2D, texture[i]);
 
-    return status;
+      glTexImage2D(GL_TEXTURE_2D, 0, 3, TextureImage[i]->w, TextureImage[i]->h, 0, GL_BGR, GL_UNSIGNED_BYTE, TextureImage[i]->pixels);
+
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+  }
+
+  for (int i = 0; i < 4; i++)
+    if (TextureImage[i]) SDL_FreeSurface(TextureImage[i]);
+
+  return status;
 }
 
+
+void Labirynt::genmaze() {
+  int H, C,	E;
+  int L[10],R[10];
+  int i, j;
+
+  for (E = 10, i = 0; --E; L[E] = R[E] = E, i ++) { /* close top of maze */
+    T[0][i] = '_';
+  }
+
+  H = 10;
+  L[0] = 1;
+
+	j = 1;
+  T[j][0] = '|';
+
+  while (--H) {
+    for (C = 10, i = 0; --C; i++)	{
+      if (C != (E=L[C-1]) && 6<<27<rand()) { /* make right-connection ? */
+        R[E] = R[C]; /* link E */
+        L[R[C]] = E; /* to R[C] */
+        R[C] = C-1;	/* link C */
+        L[C-1] = C;	/* to C-1 */
+
+        T[j][i + 1] = '.';
+      }
+      else { /* no wall to the right */
+        T[j][i + 1] = '|';
+      }
+
+      if (C != (E=L[C]) && 6<<27<rand()) {	/* omit down-connection ? */
+        R[E] = R[C]; /* link E */
+        L[R[C]] = E; /* to R[C] */
+        L[C] = C;	/* link C */
+        R[C] = C;	/* to C */
+
+        T[j + 1][i] = '_';
+      }
+      else { /* no wall downward */
+        T[j + 1][i] = ' ';
+      }
+    }
+
+    j += 2;
+    T[j][0] = '|';
+  }
+
+  for (C = 10, i = 0; --C; i++) { /* close bottom of maze */
+    if (C != (E=L[C-1]) && (C == R[C] || 6<<27<rand())) {
+      L[R[E]=R[C]]=E;
+      L[R[C]=C-1]=C;
+
+      T[j][i + 1] = '.';
+    }
+    else {
+      T[j][i + 1] = '|';
+    }
+
+    E = L[C];
+    R[E] = R[C];
+    L[R[C]] = E;
+    L[C] = C;
+    R[C] = C;
+
+    T[j + 1][i] = '_';
+  }
+
+  for (j = 0; j < 21; j++) {
+    for (i = 0; i < 9 + (j % 2); i++)
+      printf("%c", T[j][i]);
+	printf("\n");
+  }
+}
+
+
 bool Labirynt::init() {
+  srand(time(0));
+
 	if (!m_Window.createWindow(800, 600, 32, false, "Labirynt")) return false;
 
-    if (!LoadGLTextures()) return false;
+  if (!loadtextures()) return false;
+  genmaze();
 
-    glEnable(GL_TEXTURE_2D);
-
+  glEnable(GL_TEXTURE_2D);
 	glShadeModel(GL_SMOOTH);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.5f);
 	glClearDepth(1.0f);
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
+	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
-    m_RotationAngle = 90;
-	x = 8;
-	y = 0;
-	z = -6;
-	h = 6;
-	m = 6;
+  m_RotationAngle = 135;
+  x = -3;
+  y = 0;
+  z = -3;
+  h = 6;
+  m = 10;
 
-	fstream file("labirynt.txt");
-	float xx = 0, zz = 0, xxx, zzz;
-	float r1 = 0.25, r2 = 0.17, r = 0.0;
-    int i = 0;
-    char c;
-	while (file >> c) {
-	    if (c == '#') {
-	        if (i % 2 == 0) {
-	            m_Vertices.push_back(Vertex(xx, -1, zz));
-                m_Colors.push_back(Vertex(r1, 0, 0));
-                m_Vertices.push_back(Vertex(xx + h, -1, zz));
-                m_Colors.push_back(Vertex(r1, 0, 0));
-                m_Vertices.push_back(Vertex(xx + h, 1, zz));
-                m_Colors.push_back(Vertex(r1, 0, 0));
-                m_Vertices.push_back(Vertex(xx, 1, zz));
-                m_Colors.push_back(Vertex(r1, 0, 0));
+  float xx = 0, zz = 0;
+  for (int j = 0; j < 20; j++) {
+    if (j % 2 == 0) {
+      for (int i = 0; i < 9; i++) {
+        if (T[j][i] == '_') {
+          m_Vertices.push_back(Vertex(xx, -1, zz));
+          m_Vertices.push_back(Vertex(xx + h, -1, zz));
+          m_Vertices.push_back(Vertex(xx + h, 1, zz));
+          m_Vertices.push_back(Vertex(xx, 1, zz));
+        }
+        xx += h;
+      }
+      xx = 0;
+    }
+    else {
+      for (int i = 0; i < 10; i++) {
+        if (T[j][i] == '|') {
+          m_Vertices.push_back(Vertex(xx, -1, zz));
+          m_Vertices.push_back(Vertex(xx, -1, zz + h));
+          m_Vertices.push_back(Vertex(xx, 1, zz + h));
+          m_Vertices.push_back(Vertex(xx, 1, zz));
+        }
+        xx += h;
+      }
+      xx = 0;
+      zz += h;
+    }
+  }
 
-//                m_Vertices.push_back(Vertex(xx, -1, zz + r));
-//                m_Colors.push_back(Vertex(r1, 0, 0));
-//                m_Vertices.push_back(Vertex(xx + h, -1, zz + r));
-//                m_Colors.push_back(Vertex(r1, 0, 0));
-//                m_Vertices.push_back(Vertex(xx + h, 1, zz + r));
-//                m_Colors.push_back(Vertex(r1, 0, 0));
-//                m_Vertices.push_back(Vertex(xx, 1, zz + r));
-//                m_Colors.push_back(Vertex(r1, 0, 0));
+//  m_RotationAngle = 90;
+//	x = 9;
+//	y = 0;
+//	z = -9;
+//	h = 6;
+//	m = 10;
 //
-//                m_Vertices.push_back(Vertex(xx, -1, zz));
-//                m_Colors.push_back(Vertex(r1, 0, 0));
-//                m_Vertices.push_back(Vertex(xx, -1, zz + r));
-//                m_Colors.push_back(Vertex(r1, 0, 0));
-//                m_Vertices.push_back(Vertex(xx, 1, zz + r));
-//                m_Colors.push_back(Vertex(r1, 0, 0));
-//                m_Vertices.push_back(Vertex(xx, 1, zz));
-//                m_Colors.push_back(Vertex(r1, 0, 0));
+//	string name;
 //
-//                m_Vertices.push_back(Vertex(xx + h, -1, zz));
-//                m_Colors.push_back(Vertex(r1, 0, 0));
-//                m_Vertices.push_back(Vertex(xx + h, -1, zz + r));
-//                m_Colors.push_back(Vertex(r1, 0, 0));
-//                m_Vertices.push_back(Vertex(xx + h, 1, zz + r));
-//                m_Colors.push_back(Vertex(r1, 0, 0));
-//                m_Vertices.push_back(Vertex(xx + h, 1, zz));
-//                m_Colors.push_back(Vertex(r1, 0, 0));
-	        }
-	        else {
-	            m_Vertices.push_back(Vertex(xx, -1, zz));
-                m_Colors.push_back(Vertex(r2, 0, 0));
-                m_Vertices.push_back(Vertex(xx, -1, zz + h + r));
-                m_Colors.push_back(Vertex(r2 + 0.1, 0, 0));
-                m_Vertices.push_back(Vertex(xx, 1, zz + h + r));
-                m_Colors.push_back(Vertex(r2 + 0.1, 0, 0));
-                m_Vertices.push_back(Vertex(xx, 1, zz));
-                m_Colors.push_back(Vertex(r2, 0, 0));
+//  switch (rand() % 3) {
+//    case 0 : name = "maze1.txt";
+//      break;
+//    case 1 : name = "maze2.txt";
+//      break;
+//    case 2 : name = "maze3.txt";
+//      break;
+//  }
+//
+//	fstream file(name.c_str());
+//
+//	float xx = 0, zz = 0;
+//	int i = 0;
+//	char c, d, e, f;
+//	while (file >> c) {
+//	  if (i % 2 == 0) {
+//	    if (c == '-') {
+//	      file >> d >> e;
+//	      m_Vertices.push_back(Vertex(xx, -1, zz));
+//        m_Vertices.push_back(Vertex(xx + h, -1, zz));
+//        m_Vertices.push_back(Vertex(xx + h, 1, zz));
+//        m_Vertices.push_back(Vertex(xx, 1, zz));
+//        xx += h;
+//	    } else if (c == '.') {
+//	      file >> d >> e;
+//	      xx += h;
+//	    } else if (c == ';') {
+//	      i++;
+//	      xx = 0;
+//	    }
+//	  } else {
+//	    if (c == '|') {
+//	      m_Vertices.push_back(Vertex(xx, -1, zz));
+//        m_Vertices.push_back(Vertex(xx, -1, zz + h));
+//        m_Vertices.push_back(Vertex(xx, 1, zz + h));
+//        m_Vertices.push_back(Vertex(xx, 1, zz));
+//	      file >> d;
+//	      if (d == ';') {
+//	        i++;
+//          xx = 0;
+//          zz += h;
+//	      } else {
+//          xx += h;
+//          file >> e >> f;
+//	      }
+//	    } else if (c == '.') {
+//	      file >> d;
+//	      if (d == ';') {
+//	        i++;
+//          xx = 0;
+//          zz += h;
+//	      } else {
+//          xx += h;
+//          file >> e >> f;
+//	      }
+//	    }
+//	  }
+//	}
+//
+//	file.close();
 
-//                m_Vertices.push_back(Vertex(xx + r, -1, zz));
-//                m_Colors.push_back(Vertex(r2, 0, 0));
-//                m_Vertices.push_back(Vertex(xx + r, -1, zz + h + r));
-//                m_Colors.push_back(Vertex(r2 + 0.1, 0, 0));
-//                m_Vertices.push_back(Vertex(xx + r, 1, zz + h + r));
-//                m_Colors.push_back(Vertex(r2 + 0.1, 0, 0));
-//                m_Vertices.push_back(Vertex(xx + r, 1, zz));
-//                m_Colors.push_back(Vertex(r2, 0, 0));
-//
-//                m_Vertices.push_back(Vertex(xx, -1, zz));
-//                m_Colors.push_back(Vertex(r2, 0, 0));
-//                m_Vertices.push_back(Vertex(xx + r, -1, zz));
-//                m_Colors.push_back(Vertex(r2, 0, 0));
-//                m_Vertices.push_back(Vertex(xx + r, 1, zz));
-//                m_Colors.push_back(Vertex(r2, 0, 0));
-//                m_Vertices.push_back(Vertex(xx, 1, zz));
-//                m_Colors.push_back(Vertex(r2, 0, 0));
-//
-//                m_Vertices.push_back(Vertex(xx, -1, zz + h + r));
-//                m_Colors.push_back(Vertex(r2 + 0.1, 0, 0));
-//                m_Vertices.push_back(Vertex(xx + r, -1, zz + h + r));
-//                m_Colors.push_back(Vertex(r2 + 0.1, 0, 0));
-//                m_Vertices.push_back(Vertex(xx + r, 1, zz + h + r));
-//                m_Colors.push_back(Vertex(r2 + 0.1, 0, 0));
-//                m_Vertices.push_back(Vertex(xx, 1, zz + h + r));
-//                m_Colors.push_back(Vertex(r2 + 0.1, 0, 0));
-	        }
-	        xx += h;
-	    }
-	    else if (c == '.') {
-	        xxx = xx;
-	        xx = 0;
-	        if (i % 2 == 1) zz += h;
-	        zzz = zz;
-	        i++;
-	        r1 += 0.05;
-	        r2 += 0.05;
-	    }
-	    else xx += h;
-	}
-	file.close();
 
-//	m_Vertices.push_back(Vertex(0, -1, 0));
-//    m_Colors.push_back(Vertex(0.1, 0, 0));
-//    m_Vertices.push_back(Vertex(xxx + r, -1, 0));
-//    m_Colors.push_back(Vertex(0.1, 0, 0));
-//    m_Vertices.push_back(Vertex(xxx + r, -1, zzz));
-//    m_Colors.push_back(Vertex(0.1, 0, 0));
-//    m_Vertices.push_back(Vertex(0, -1, zzz));
-//    m_Colors.push_back(Vertex(0.1, 0, 0));
-//
-//    m_Vertices.push_back(Vertex(0, 1, 0));
-//    m_Colors.push_back(Vertex(0.2, 0, 0));
-//    m_Vertices.push_back(Vertex(xxx + r, 1, 0));
-//    m_Colors.push_back(Vertex(0.2, 0, 0));
-//    m_Vertices.push_back(Vertex(xxx + r, 1, zzz));
-//    m_Colors.push_back(Vertex(0.2, 0, 0));
-//    m_Vertices.push_back(Vertex(0, 1, zzz));
-//    m_Colors.push_back(Vertex(0.2, 0, 0));
+//  m_RotationAngle = 90;
+//	x = 8;
+//	y = 0;
+//	z = -6;
+//	h = 6;
+//	m = 6;
 
 	return true;
 }
+
 
 bool Labirynt::helper(Vertex A, Vertex B, Vertex C) {
     return (C.z-A.z)*(B.x-A.x) > (B.z-A.z)*(C.x-A.x);
 }
 
+
 bool Labirynt::intersect(Vertex A, Vertex B, Vertex C, Vertex D) {
     return helper(A,C,D) != helper(B,C,D) && helper(A,B,C) != helper(A,B,D);
 }
 
-bool Labirynt::intersects(Point p, Point q, Point c, double r) {
+
+bool Labirynt::intersects(Vertex p, Vertex q, Vertex c, double r) {
 	double dx, dy, t, rt;
 
 	dx = q.x - p.x;
-	dy = q.y - p.y;
-	t = -((p.x - c.x)*dx + (p.y - c.y)*dy) / ((dx*dx) + (dy*dy));
+	dy = q.z - p.z;
+	t = -((p.x - c.x)*dx + (p.z - c.z)*dy) / ((dx*dx) + (dy*dy));
 
 	if(t < 0.0) {
 		t = 0.0;
@@ -192,7 +271,7 @@ bool Labirynt::intersects(Point p, Point q, Point c, double r) {
 	}
 
 	dx = (p.x + t*(q.x - p.x)) - c.x;
-	dy = (p.y + t*(q.y - p.y)) - c.y;
+	dy = (p.z + t*(q.z - p.z)) - c.z;
 	rt = (dx*dx) + (dy*dy);
 
 	if(rt < (r*r))
@@ -200,15 +279,17 @@ bool Labirynt::intersects(Point p, Point q, Point c, double r) {
 	return false;
 }
 
+
 bool Labirynt::out(Vertex u, Vertex v) {
     int n = (m_Vertices.size() + 1) / 4;
     for (int i = 0; i < n; i++) {
         Vertex v1 = m_Vertices[4*i], v2 = m_Vertices[4*i+1];
 //        if (intersect(u, v, v1, v2)) return true;
-        if (intersects(Point(v1.x, v1.z), Point(v2.x, v2.z), Point(v.x, v.z), 0.6)) return true;
+        if (intersects(Vertex(v1.x, 0, v1.z), Vertex(v2.x, 0, v2.z), Vertex(v.x, 0, v.z), 0.6)) return true;
     }
     return false;
 }
+
 
 void Labirynt::draw() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -324,19 +405,8 @@ void Labirynt::draw() {
 	if (m_Keys[SDLK_z]) y += 0.16;
 	if (y > 0) y -= 0.06;
 
-	if (m_Keys[SDLK_LEFT]) m_RotationAngle -= 1.8;
-	if (m_Keys[SDLK_RIGHT]) m_RotationAngle += 1.8;
+	if (m_Keys[SDLK_LEFT]) m_RotationAngle -= 2.0;
+	if (m_Keys[SDLK_RIGHT]) m_RotationAngle += 2.0;
 
 	if(m_RotationAngle > 360.0) m_RotationAngle -= 360.0;
-
-	//glEnableClientState(GL_VERTEX_ARRAY);
-	//glEnableClientState(GL_COLOR_ARRAY);
-
-	//glVertexPointer(3, GL_FLOAT, 0, &m_Vertices[0]);
-	//glColorPointer(3, GL_FLOAT, 0, &m_Colors[0]);
-
-	//glDrawArrays(GL_QUADS, 0, m_Vertices.size());
-
-	//glDisableClientState(GL_COLOR_ARRAY);
-	//glDisableClientState(GL_VERTEX_ARRAY);
 }
