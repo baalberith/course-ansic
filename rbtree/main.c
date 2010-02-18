@@ -190,12 +190,6 @@ node lookup_node(GtkWidget *darea, rbtree t, int key) {
   return n;
 }
 
-void* rbtree_lookup(GtkWidget *darea, rbtree t, int key) {
-  node n = lookup_node(darea, t, key);
-
-  return n == NULL ? NULL : n->key;
-}
-
 
 void rbtree_insert(GtkWidget *darea, rbtree t, int key) {
   int x = WIDTH / 2, y = 22, r = (WIDTH - 20) / 2;

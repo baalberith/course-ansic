@@ -3,6 +3,7 @@
 
 #include <gtk/gtk.h>
 
+
 enum rbtree_node_color { RED, BLACK };
 typedef enum rbtree_node_color color;
 

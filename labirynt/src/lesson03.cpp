@@ -56,7 +56,7 @@ void Labirynt::genmaze() {
 
   while (--H) {
     for (C = 10, i = 0; --C; i++)	{
-      if (C != (E=L[C-1]) && 6<<27<rand()) { /* make right-connection ? */
+      if (C != (E=L[C-1]) && 6<<27 < rand()) { /* make right-connection ? */
         R[E] = R[C]; /* link E */
         L[R[C]] = E; /* to R[C] */
         R[C] = C-1;	/* link C */
@@ -68,7 +68,7 @@ void Labirynt::genmaze() {
         T[j][i + 1] = '|';
       }
 
-      if (C != (E=L[C]) && 6<<27<rand()) {	/* omit down-connection ? */
+      if (C != (E=L[C]) && 6<<27 < rand()) {	/* omit down-connection ? */
         R[E] = R[C]; /* link E */
         L[R[C]] = E; /* to R[C] */
         L[C] = C;	/* link C */
@@ -86,7 +86,7 @@ void Labirynt::genmaze() {
   }
 
   for (C = 10, i = 0; --C; i++) { /* close bottom of maze */
-    if (C != (E=L[C-1]) && (C == R[C] || 6<<27<rand())) {
+    if (C != (E=L[C-1]) && (C == R[C] || 6<<27 < rand())) {
       L[R[E]=R[C]]=E;
       L[R[C]=C-1]=C;
 
@@ -105,10 +105,14 @@ void Labirynt::genmaze() {
     T[j + 1][i] = '_';
   }
 
-  for (j = 0; j < 21; j++) {
-    for (i = 0; i < 9 + (j % 2); i++)
+  for (i = 0; i < 9; i++) printf("._");
+  printf("\n");
+  for (j = 1; j < 21; j += 2) {
+    for (i = 0; i < 10; i++) {
       printf("%c", T[j][i]);
-	printf("\n");
+      printf("%c", T[j + 1][i]);
+    }
+    printf("\n");
   }
 }
 
@@ -234,14 +238,6 @@ bool Labirynt::init() {
 //	}
 //
 //	file.close();
-
-
-//  m_RotationAngle = 90;
-//	x = 8;
-//	y = 0;
-//	z = -6;
-//	h = 6;
-//	m = 6;
 
 	return true;
 }
